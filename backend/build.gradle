@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+repositories { mavenCentral() }
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+configurations {
+    otelAgent
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.opentelemetry:opentelemetry-api'
+    otelAgent 'io.opentelemetry.javaagent:opentelemetry-javaagent:2.22.0'
+}
+
+tasks.named('bootRun') {
+    jvmArgumentProviders.add({ ["-javaagent:${configurations.otelAgent.singleFile}"] } as CommandLineArgumentProvider)
+    environment 'OTEL_SERVICE_NAME', 'spring-api'
+    environment 'OTEL_EXPORTER_OTLP_PROTOCOL', 'http/protobuf'
+    environment 'OTEL_METRICS_EXPORTER', 'none'
+    environment 'OTEL_LOGS_EXPORTER', 'otlp'
+    environment 'OTEL_BSP_SCHEDULE_DELAY', '200'
+    environment 'OTEL_BLRP_SCHEDULE_DELAY', '200'
+    environment 'OTEL_INSTRUMENTATION_LOGBACK_APPENDER_ENABLED', 'true'
+}

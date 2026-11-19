@@ -1,0 +1,34 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #17302e;
+  background: #eef5f1;
+}
+
+body { margin: 0; }
+
+main {
+  width: min(36rem, calc(100% - 5rem));
+  margin: clamp(2rem, 12vh, 8rem) auto;
+  padding: 1.75rem;
+  border: 1px solid #c7d8ce;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.25rem); }
+p { line-height: 1.6; }
+
+button {
+  border: 0;
+  border-radius: .5rem;
+  padding: .75rem 1.1rem;
+  background: #115d52;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled { opacity: .65; cursor: wait; }
+section { margin-top: 1.5rem; border-top: 1px solid #c7d8ce; }
+dt { font-weight: 650; }
+dd { margin: .25rem 0 .9rem; overflow-wrap: anywhere; }
