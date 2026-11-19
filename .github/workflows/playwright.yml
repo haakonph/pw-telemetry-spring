@@ -1,0 +1,98 @@
+name: Playwright
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Playwright tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      report-url: ${{ steps.report.outputs.artifact-url }}
+    env:
+      CI: 'true'
+      PLAYWRIGHT_HTML_OPEN: never
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start OpenTelemetry Collector
+        run: |
+          docker compose up -d
+          curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 \
+            -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:4318/v1/logs
+      - name: Run Playwright
+        run: npm test -- --reporter=list,html
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        id: report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Link report from check summary
+        if: ${{ !cancelled() && steps.report.outputs.artifact-url != '' }}
+        env:
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+        run: printf '[Last ned Playwright-rapporten (HTML)](%s)\n' "$REPORT_URL" >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop OpenTelemetry Collector
+        if: always()
+        run: docker compose down
+
+  comment:
+    name: Link report in PR
+    needs: test
+    if: ${{ !cancelled() && needs.test.outputs.report-url != '' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          REPORT_URL: ${{ needs.test.outputs.report-url }}
+          TEST_RESULT: ${{ needs.test.result }}
+        with:
+          script: |
+            const marker = '<!-- playwright-report -->';
+            const issue_number = context.issue.number;
+            const repository = { ...context.repo, issue_number };
+            const status = process.env.TEST_RESULT === 'success' ? '✅ Bestått' : '❌ Feilet';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              marker,
+              `### Playwright · ${status}`,
+              `[Last ned HTML-rapporten (ZIP)](${process.env.REPORT_URL}) · [Se Actions-kjøringen](${run})`,
+              'Pakk ut ZIP-filen og åpne rapportmappen med `npx playwright show-report <mappe>`. Feilede tester inneholder Playwright-trace og eventuell backend-diagnostikk.',
+            ].join('\n\n');
+            const comments = await github.paginate(github.rest.issues.listComments, repository);
+            const previous = comments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker)
+            );
+            if (previous) {
+              await github.rest.issues.updateComment({
+                ...context.repo, comment_id: previous.id, body
+              });
+            } else {
+              await github.rest.issues.createComment({ ...repository, body });
+            }
