@@ -19,6 +19,7 @@ jobs:
       report-url: ${{ steps.report.outputs.artifact-url }}
     env:
       CI: 'true'
+      DEMO_BACKEND_FAILURE: '1'
       PLAYWRIGHT_HTML_OPEN: never
     steps:
       - uses: actions/checkout@v7
