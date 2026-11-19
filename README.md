@@ -46,7 +46,7 @@ Stopp Collectoren med `docker compose down` når du er ferdig. Collectoren skriv
 
 ## Backend-diagnostikk ved testfeil
 
-Når Playwright-testen feiler eller går ut på tid, henter den siste feillogg og siste registrerte unntak fra `spring-api` med testens sporings-ID. Diagnostikken vises i terminalen og vedlegges testresultatet som `spring-backend-diagnostics`. Den opprinnelige testfeilen og Playwright-tracen vises fortsatt. Collectoren må kjøre for at testen skal kunne hente backend-diagnostikken.
+Når Playwright-testen feiler eller går ut på tid, henter den siste feillogg og siste registrerte unntak fra `spring-api` med testens sporings-ID. Åpne den feilede testen i HTML-rapporten og se under **Errors**. Der vises testfeilen sammen med et sammendrag av backend-feilloggen og unntaket. Vedlegget `spring-backend-diagnostics` inneholder hele stacktracen. Rapporten inkluderer også skjermbilde og Playwright-trace ved feil. Collectoren må kjøre for at testen skal kunne hente backend-diagnostikken.
 
 Kjør demoen med tvungen backend-feil for å se hvordan dette ser ut. Denne kjøringen skal feile.
 
