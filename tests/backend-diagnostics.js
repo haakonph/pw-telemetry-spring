@@ -48,6 +48,7 @@ function latest(records) {
 
 export async function attachBackendDiagnostics(testInfo, traceId) {
   let report;
+  let summary;
   try {
     // Give the Java agent time to export its 200 ms batches after an early failure.
     await setTimeout(600);
@@ -55,10 +56,11 @@ export async function attachBackendDiagnostics(testInfo, traceId) {
       'compose', 'logs', '--no-color', '--no-log-prefix', '--since', '5m', 'collector',
     ], { timeout: 5000, maxBuffer: 16 * 1024 * 1024 });
     const { error, exception } = findBackendDiagnostics(`${stdout}\n${stderr}`, traceId);
-    report = [
-      `Siste feillogg: ${error ?? 'Ingen matchende backend-feillogg funnet.'}`,
-      `Siste unntak: ${exception ?? 'Ingen matchende backend-unntak funnet.'}`,
-    ].join('\n\n');
+    const errorLine = `Siste feillogg: ${error ?? 'Ingen matchende backend-feillogg funnet.'}`;
+    const noException = 'Ingen matchende backend-unntak funnet.';
+    report = `${errorLine}\n\nSiste unntak: ${exception ?? noException}`;
+    const exceptionSummary = exception?.split('\n').slice(0, 2).join(' · ');
+    summary = `${errorLine}\nSiste unntak: ${exceptionSummary ?? noException}`;
   } catch (error) {
     report = `Kunne ikke hente backend-diagnostikk fra Collectoren: ${error.message}`;
   }
@@ -66,4 +68,5 @@ export async function attachBackendDiagnostics(testInfo, traceId) {
   const body = `Spring Boot · trace ID ${traceId}\n\n${report}`;
   console.error(body);
   await testInfo.attach('spring-backend-diagnostics', { body, contentType: 'text/plain' });
+  return `Spring Boot · trace ID ${traceId}\n${summary ?? report}`;
 }

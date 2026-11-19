@@ -86,7 +86,7 @@ jobs:
               marker,
               `### Playwright · ${status}`,
               `[Last ned HTML-rapporten (ZIP)](${process.env.REPORT_URL}) · [Se Actions-kjøringen](${run})`,
-              'Pakk ut ZIP-filen og åpne rapportmappen med `npx playwright show-report <mappe>`. Feilede tester inneholder Playwright-trace og eventuell backend-diagnostikk.',
+              'Pakk ut ZIP-filen og åpne rapportmappen med `npx playwright show-report <mappe>`. Klikk på den feilede testen og se **Errors** for backend-feilen. Skjermbilde, stacktrace og Playwright-trace ligger i testrapporten.',
             ].join('\n\n');
             const comments = await github.paginate(github.rest.issues.listComments, repository);
             const previous = comments.find(comment =>

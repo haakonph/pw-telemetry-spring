@@ -10,7 +10,8 @@ import { NodeTracerProvider, SimpleSpanProcessor } from '@opentelemetry/sdk-trac
 
 test.afterEach(async ({}, testInfo) => {
   const traceId = testInfo.annotations.find(({ type }) => type === 'trace-id')?.description;
-  if (traceId && ['failed', 'timedOut'].includes(testInfo.status)) {
+  if (traceId && testInfo.status === 'timedOut' &&
+      !testInfo.attachments.some(({ name }) => name === 'spring-backend-diagnostics')) {
     await attachBackendDiagnostics(testInfo, traceId);
   }
 });
@@ -48,11 +49,13 @@ test('Playwright, React og Spring Boot deler trace ID', async ({ page }, testInf
       });
     }
     await page.goto(`/#${new URLSearchParams(carrier)}`);
-    const [browserLog, browserSpan] = await Promise.all([
+    const [apiResponse, browserLog, browserSpan] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/greeting'),
       page.waitForResponse('**/otlp/v1/logs'),
       page.waitForResponse('**/otlp/v1/traces'),
       page.getByRole('button', { name: 'Hent hilsen' }).click(),
     ]);
+    expect(apiResponse.ok(), `Spring Boot GET /api/greeting svarte HTTP ${apiResponse.status()}`).toBe(true);
     for (const response of [browserLog, browserSpan]) {
       expect(response.ok(), response.url()).toBe(true);
     }
@@ -74,7 +77,8 @@ test('Playwright, React og Spring Boot deler trace ID', async ({ page }, testInf
       severityText: 'ERROR',
       body: 'Playwright-testen feilet',
     });
-    throw error;
+    const diagnostics = await attachBackendDiagnostics(testInfo, traceId);
+    throw new Error(`${error.message}\n\n${diagnostics}`, { cause: error });
   } finally {
     console.log(`TRACE_ID=${traceId}`);
     span.end();
